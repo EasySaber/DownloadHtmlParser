@@ -1,14 +1,26 @@
 import java.io.*;
 import java.sql.*;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Logger;
 
 public class bdSql {
-
+    private static final Logger logger = Logger.getLogger(bdSql.class.getName());
     private Connection connect;
     private final String resultFileName = "Result.txt";
     private final String wordsFileName = "Words.txt";
 
     public void all() throws IOException {
+
+        Handler fileHandler = null;
+        try {
+            fileHandler = new FileHandler("DHPbd.log");
+        } catch (IOException e) {
+            logger.warning(e.getMessage());
+        }
+        logger.addHandler(fileHandler);
+
         bdSql sqlProg = new bdSql();
         sqlProg.connectBD();
         sqlProg.dropTable();
@@ -16,6 +28,8 @@ public class bdSql {
         sqlProg.inputFile();
         sqlProg.selectWords();
         sqlProg.disconnectBD();
+
+        fileHandler.close();
     }
 
 
@@ -24,24 +38,24 @@ public class bdSql {
         try {
             Class.forName("org.sqlite.JDBC");
             connect = DriverManager.getConnection("JDBC:sqlite:SearchWords.db");
-            System.out.println(">>>Ok.Connected BD.");
+            logger.info("Connected BD.");
         }
         catch (Exception e){
-            System.out.println(e.getMessage());
+            logger.warning(e.getMessage());
         }
     }
 
     //Удаление старой таблицы
     private void dropTable() {
-        String queryDropTable = "DROP TABLE words; ";
-
+        String queryDropTable = "DROP TABLE IF EXISTS words; ";
         try {
             Statement statement = connect.createStatement();
             statement.executeUpdate(queryDropTable);
-            System.out.println(">>>Ok.BD.Drop table.");
+            statement.execute("VACUUM;");
+            logger.info("BD.Drop table.");
         }
         catch (SQLException e){
-            System.out.println(e.getMessage());
+            logger.warning(e.getMessage());
         }
 
     }
@@ -50,27 +64,23 @@ public class bdSql {
     private void createTable() {
         String queryCreateTable = "CREATE TABLE words( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "sword VARCHAR(100), " +
-                "quantity INTEGER);";
+                "sword VARCHAR(100) UNIQUE, " +
+                "quantity INT DEFAULT 1);";
         try {
             Statement statement = connect.createStatement();
             statement.executeUpdate(queryCreateTable);
-            System.out.println(">>>Ok.BD.Create table.");
+            logger.info("BD.Create table.");
         }
         catch (SQLException e){
-            System.out.println(e.getMessage());
+           logger.warning(e.getMessage());
         }
     }
 
     //Вывод данных таблицы в консоль + запись в текстовый файл Result.txt
-    private void selectWords() throws IOException {
-        long startTime = System.nanoTime();
-
+    private void selectWords(){
         String querySelectTable = "SELECT id, sword, quantity " +
-                "FROM words ; ";
-        try {
-            BufferedWriter writeFile = new BufferedWriter(new FileWriter(resultFileName));
-
+                                  "FROM words ; ";
+        try (BufferedWriter writeFile = new BufferedWriter(new FileWriter(resultFileName));){
             Statement statement = connect.createStatement();
             ResultSet rs = statement.executeQuery(querySelectTable);
             while (rs.next()){
@@ -82,87 +92,56 @@ public class bdSql {
                 writeFile.write(id + "\t" + word + "\t - " + quantity);
                 writeFile.newLine();
             }
-            writeFile.close();
 
-            System.out.println(">>>Ok.BD.Select words.");
-            System.out.println(">>>Ok.File create Result.txt.");
+            logger.info("BD.Select words.");
+            logger.info("File create Result.txt.");
         }
-        catch (SQLException e){
-            System.out.println(e.getMessage());
+        catch (IOException | SQLException ie){
+            logger.warning(ie.getMessage());
         }
-
-
-        long endTime = System.nanoTime();
-        long msTimeRun = TimeUnit.MILLISECONDS.convert(endTime-startTime, TimeUnit.NANOSECONDS);
-        System.out.println("Time run: " + msTimeRun + " ms");
     }
 
     //Отключение БД
     private void disconnectBD(){
         try {
             connect.close();
-            System.out.println(">>>Ok.BD.Disconnect.");
+            logger.info("BD.Disconnect.");
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            logger.warning(e.getMessage());
         }
     }
 
     //Чтение файла со словами. Запись результата в БД.
-    private void inputFile() throws IOException {
-        long startTime = System.nanoTime();
-
-        try {
-            BufferedReader readFile = new BufferedReader(new FileReader(wordsFileName));
+    private void inputFile() {
+        try (BufferedReader readFile = new BufferedReader(new FileReader(wordsFileName));){
             String word;
-            System.out.println(">>>Please wait.....");
-            while ((word = readFile.readLine()) != null) {
-                String querySwordsTable = "SELECT COUNT(*) AS count " +
-                        "FROM words " +
-                        "WHERE sword = '" + word + "'";
-
-                String queryUpdate = "UPDATE words " +
-                        "SET quantity = quantity+1 " +
-                        "WHERE sword = '" + word + "';";
-
-                String queryInsert = "INSERT INTO words (sword, quantity) " +
-                        "VALUES ('" + word + "', '1');";
-
-                try {
-                    Statement statement = connect.createStatement();
-                    ResultSet rs = statement.executeQuery(querySwordsTable);
-                    int count = rs.getInt("count");
-
-                    if (count > 0) {
-                        try {
-                            statement.executeUpdate(queryUpdate);
-                            //System.out.println(">>>Ok.BD.Update quantity for: "+word);
-                        } catch (SQLException e) {
-                            System.out.println(e.getMessage());
+            boolean end = false;
+            long i = 0;
+            try {
+                Statement statement = connect.createStatement();
+                while (!end) {
+                    statement.execute("BEGIN TRANSACTION;");
+                    while (i < 100000) {
+                        if ((word = readFile.readLine()) == null) {
+                            end = true;
+                            logger.info("File ended.");
+                            break;
                         }
-                    } else {
-                        try {
-                            statement.executeUpdate(queryInsert);
-                            //System.out.println(">>>Ok.BD.Word insert: " + word);
-                        } catch (SQLException e) {
-                            System.out.println(e.getMessage());
-                        }
+                        String queryInsert = "INSERT INTO words (sword) " +
+                                "VALUES ('" + word + "') " +
+                                "ON CONFLICT (sword) DO UPDATE SET quantity = quantity+1 ";
+                        statement.executeUpdate(queryInsert);
                     }
-
-                } catch (SQLException e) {
-                    System.out.println(e.getMessage());
-                }
+                    statement.execute("COMMIT;");
             }
-            readFile.close();
-            System.out.println(">>>Ok.File Word.txt read. Words insert in BD.");
-
-            long endTime = System.nanoTime();
-            long msTimeRun = TimeUnit.MILLISECONDS.convert(endTime - startTime, TimeUnit.NANOSECONDS);
-            System.out.println("Time run: " + msTimeRun + " ms");
-        } catch (FileNotFoundException e) {
-            System.out.println(e.getMessage());
+            } catch (SQLException e) {
+                logger.warning(e.getMessage());
+            }
+            logger.info("File Word.txt read. Words insert in BD.");
         }
-
-
+        catch (IOException e) {
+            logger.warning(e.getMessage());
+        }
     }
 
 }
