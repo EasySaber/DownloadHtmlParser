@@ -1,7 +1,6 @@
 import java.io.*;
 import java.sql.*;
 import java.util.Date;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
