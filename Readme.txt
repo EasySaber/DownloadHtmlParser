@@ -20,7 +20,7 @@
 >>>>>>>>>>
 Пример:
 https://www.java.com/ru/
-https://www.oracle.com/ru/index.HTML
+https://ru.wikipedia.org/wiki/Java
 https://yandex.ru/search/?text=программирование&lr=195&clid=9582&src=suggest_B
 >>>>>>>>>>
 -Для завершения работы с приложением введите вместо адреса "+" и нажмите Enter
