@@ -11,7 +11,7 @@
 **********************
 Запуск приложения(варианты на выбор):
 -URLDownload-2.bat
--команда: java -jar URLDownload-2-jar-with-dependencies.jar в терминале
+-команда: java -jar URLDownload-2.0-jar-with-dependencies.jar в терминале
 
 **********************
 Проверка работы приложения:
