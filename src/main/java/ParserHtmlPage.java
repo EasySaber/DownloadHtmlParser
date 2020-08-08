@@ -8,6 +8,7 @@ import javax.swing.text.html.HTMLEditorKit;
 import java.io.*;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,33 +20,32 @@ public class ParserHtmlPage {
     private final String txtFileName = "DownloadNoTag.txt";
     private final String wordsFileName = "Words.txt";
 
-    public void all() throws Exception {
+    public void all() {
         Handler fileHandler = null;
         try {
             fileHandler = new FileHandler("DHParser.log");
         } catch (IOException e) {
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
         logger.addHandler(fileHandler);
+
         ParserHtmlPage parser = new ParserHtmlPage();
         parser.noStyle();
         parser.noTagHtml();
         parser.parsingWords();
-
-        fileHandler.close();
     }
 
     //Удаление текста между тегами <style></style>
     private void noStyle(){
         try(BufferedReader readFile = new BufferedReader(new FileReader(inFileName));
-            BufferedWriter writeFile = new BufferedWriter(new FileWriter(nostyleFileName));) {
-            String line = null;
+            BufferedWriter writeFile = new BufferedWriter(new FileWriter(nostyleFileName))) {
+            String line = "";
 
             while (true) {
                 try {
                     if ((line = readFile.readLine()) == null) break;
                 } catch (IOException e) {
-                    logger.warning(e.getMessage());
+                    logger.log(Level.WARNING,"Error: ", e);
                 }
                 Pattern pattern = Pattern.compile("<style.*?</style>");
                 Matcher matcher = pattern.matcher(line);
@@ -53,20 +53,20 @@ public class ParserHtmlPage {
                     try {
                         writeFile.write(matcher.replaceAll(""));
                     } catch (IOException e) {
-                        logger.warning(e.getMessage());
+                        logger.log(Level.WARNING,"Error: ", e);
                     }
                 } else {
                     try {
                         writeFile.write(line);
                     } catch (IOException e) {
-                        logger.warning(e.getMessage());
+                        logger.log(Level.WARNING,"Error: ", e);
                     }
                 }
             }
 
         }
-         catch (IOException e) {
-            logger.warning(e.getMessage());
+        catch (IOException e) {
+            logger.log(Level.WARNING,"Error: ", e);
         }
     }
 
@@ -74,7 +74,7 @@ public class ParserHtmlPage {
     //Использование стандартного парсера, без сторонней библиотеки
     private void noTagHtml() {
         try(BufferedReader readFile = new BufferedReader(new FileReader(nostyleFileName));
-            BufferedWriter writeFile = new BufferedWriter(new FileWriter(txtFileName));) {
+            BufferedWriter writeFile = new BufferedWriter(new FileWriter(txtFileName))) {
 
             HTMLDocument doc = new HTMLDocument() {
                 public HTMLEditorKit.ParserCallback getReader(int pos) {
@@ -87,7 +87,7 @@ public class ParserHtmlPage {
                                     writeFile.newLine();
                                 }
                             } catch (IOException ie) {
-                                logger.warning(ie.getMessage());
+                                logger.log(Level.WARNING,"Error: ", ie);
                             }
                         }
                     };
@@ -98,11 +98,11 @@ public class ParserHtmlPage {
             try {
                 kit.read(readFile, doc, 0);
             } catch (BadLocationException e) {
-                logger.warning(e.getMessage());
+                logger.log(Level.WARNING,"Error: ", e);
             }
         }
         catch (IOException e){
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
 
         File deleteFile = new File(nostyleFileName);
@@ -119,7 +119,7 @@ public class ParserHtmlPage {
                 "([A-z]+[']+[A-z]+))(?=[\\s\\d.,! ?\":';\\[\\](){}+^|\\\\/*=-]|$)";
 
         try (BufferedReader readFile = new BufferedReader(new FileReader(txtFileName));
-             BufferedWriter writeFile = new BufferedWriter(new FileWriter(wordsFileName));){
+             BufferedWriter writeFile = new BufferedWriter(new FileWriter(wordsFileName))){
             String line;
 
             while ((line = readFile.readLine()) != null) {
@@ -142,7 +142,7 @@ public class ParserHtmlPage {
             logger.info("Parsing Words. File name: Words.txt");
 
         } catch (IOException e) {
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
 
 

@@ -1,8 +1,10 @@
 import java.io.*;
 import java.sql.*;
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class bdSql {
@@ -11,13 +13,13 @@ public class bdSql {
     private final String resultFileName = "Result.txt";
     private final String wordsFileName = "Words.txt";
 
-    public void all() throws IOException {
+    public void all(String url) {
 
         Handler fileHandler = null;
         try {
             fileHandler = new FileHandler("DHPbd.log");
         } catch (IOException e) {
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
         logger.addHandler(fileHandler);
 
@@ -26,10 +28,8 @@ public class bdSql {
         sqlProg.dropTable();
         sqlProg.createTable();
         sqlProg.inputFile();
-        sqlProg.selectWords();
+        sqlProg.selectWords(url);
         sqlProg.disconnectBD();
-
-        fileHandler.close();
     }
 
 
@@ -41,7 +41,7 @@ public class bdSql {
             logger.info("Connected BD.");
         }
         catch (Exception e){
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
     }
 
@@ -55,7 +55,7 @@ public class bdSql {
             logger.info("BD.Drop table.");
         }
         catch (SQLException e){
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
 
     }
@@ -72,23 +72,32 @@ public class bdSql {
             logger.info("BD.Create table.");
         }
         catch (SQLException e){
-           logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
     }
 
-    //Вывод данных таблицы в консоль + запись в текстовый файл Result.txt
-    private void selectWords(){
+    //запись в текстовый файл Result.txt
+    private void selectWords(String url){
         String querySelectTable = "SELECT id, sword, quantity " +
-                                  "FROM words ; ";
-        try (BufferedWriter writeFile = new BufferedWriter(new FileWriter(resultFileName));){
+                "FROM words ; ";
+        try (BufferedWriter writeFile = new BufferedWriter(new FileWriter(resultFileName, true))){
             Statement statement = connect.createStatement();
             ResultSet rs = statement.executeQuery(querySelectTable);
+            Date date = new Date();
+
+            writeFile.write("------------------------------------------------------------");
+            writeFile.newLine();
+            writeFile.write("Link: " + url);
+            writeFile.newLine();
+            writeFile.write("Date: " + date.toString());
+            writeFile.newLine();
+            writeFile.write("------------------------------------------------------------");
+            writeFile.newLine();
+
             while (rs.next()){
                 int id = rs.getInt("id");
                 String word = rs.getString("sword");
                 int quantity = rs.getInt("quantity");
-                System.out.println(id + "\t" + word + "\t - " + quantity);
-
                 writeFile.write(id + "\t" + word + "\t - " + quantity);
                 writeFile.newLine();
             }
@@ -97,7 +106,7 @@ public class bdSql {
             logger.info("File create Result.txt.");
         }
         catch (IOException | SQLException ie){
-            logger.warning(ie.getMessage());
+            logger.log(Level.WARNING,"Error: ", ie);
         }
     }
 
@@ -107,13 +116,13 @@ public class bdSql {
             connect.close();
             logger.info("BD.Disconnect.");
         } catch (SQLException e) {
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
     }
 
     //Чтение файла со словами. Запись результата в БД.
     private void inputFile() {
-        try (BufferedReader readFile = new BufferedReader(new FileReader(wordsFileName));){
+        try (BufferedReader readFile = new BufferedReader(new FileReader(wordsFileName))){
             String word;
             boolean end = false;
             long i = 0;
@@ -127,20 +136,24 @@ public class bdSql {
                             logger.info("File ended.");
                             break;
                         }
-                        String queryInsert = "INSERT INTO words (sword) " +
-                                "VALUES ('" + word + "') " +
-                                "ON CONFLICT (sword) DO UPDATE SET quantity = quantity+1 ";
-                        statement.executeUpdate(queryInsert);
+                        else {
+                            i++;
+                            String queryInsert = "INSERT INTO words (sword) " +
+                                    "VALUES ('" + word + "') " +
+                                    "ON CONFLICT (sword) DO UPDATE SET quantity = quantity+1 ";
+                            statement.executeUpdate(queryInsert);
+                        }
                     }
                     statement.execute("COMMIT;");
-            }
+                    i = 0;
+                }
             } catch (SQLException e) {
-                logger.warning(e.getMessage());
+                logger.log(Level.WARNING,"Error: ", e);
             }
             logger.info("File Word.txt read. Words insert in BD.");
         }
         catch (IOException e) {
-            logger.warning(e.getMessage());
+            logger.log(Level.WARNING,"Error: ", e);
         }
     }
 

@@ -7,6 +7,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,26 +21,27 @@ public class DownloadHtmlPage {
         Handler fileHandler = null;
         try {
             fileHandler = new FileHandler("DHP.log");
-        } catch (IOException e) {
-            logger.warning(e.getMessage());
+        }
+        catch (IOException e) {
+            logger.log(Level.WARNING,"Error: ", e);
         }
         logger.addHandler(fileHandler);
 
         DownloadHtmlPage urlRename = new DownloadHtmlPage();              //Преобразование Кириллицы в URL
 
-        URL url = null;
+        URL url;
         try {
             url = new URL(urlRename.enCoding(inUrl));
-
-        } catch (MalformedURLException e) {
-            logger.warning(e.getMessage());
+        }
+        catch (MalformedURLException e) {
+            logger.log(Level.WARNING,"Error: ", e);
             return null;
         }
         logger.info("URL-> " + url.toString());
 
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8));
-             BufferedWriter writer = new BufferedWriter(new FileWriter(DownloadFileName));){
+             BufferedWriter writer = new BufferedWriter(new FileWriter(DownloadFileName))){
             String line;
             while ((line = reader.readLine()) != null) {
                 writer.write(line);
@@ -47,11 +49,10 @@ public class DownloadHtmlPage {
             logger.info("Html-file download. File name: Download.html");
         }
         catch (IOException ie) {
-            logger.warning(ie.getMessage());       //input-output. Possible: you entered http:\\url. Try: https:\\url
+            logger.log(Level.WARNING,"Error: ", ie);       //input-output. Possible: you entered http:\\url. Try: https:\\url
             return null;
         }
 
-        fileHandler.close();
         return DownloadFileName;
     }
 
@@ -65,8 +66,9 @@ public class DownloadHtmlPage {
             String t = Character.toString(url.charAt(matcherURL.start()));
             try {
                 matcherURL.appendReplacement(urlBuff, URLEncoder.encode(t, "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
-                logger.warning(e.getMessage());
+            }
+            catch (UnsupportedEncodingException e) {
+                logger.log(Level.WARNING,"Error: ", e);
             }
         }
         matcherURL.appendTail(urlBuff);
